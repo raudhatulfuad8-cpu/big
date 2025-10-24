@@ -39,13 +39,13 @@ st.markdown("<p class='sub'>Deteksi objek dengan YOLOv8 dan klasifikasi citra de
 @st.cache_resource
 def load_models():
     try:
-        yolo_model = YOLO("model/best.pt")
+        yolo_model = YOLO("best.pt")
     except Exception as e:
         st.error(f"⚠️ Gagal memuat model YOLOv8: {e}")
         yolo_model = None
 
     try:
-        classifier = tf.keras.models.load_model("model/classifier_model.keras", compile=False)
+        classifier = tf.keras.models.load_model("classifier_model.keras", compile=False)
     except Exception as e:
         st.error(f"⚠️ Gagal memuat model Keras (.keras): {e}")
         classifier = None
