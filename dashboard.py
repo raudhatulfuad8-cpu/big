@@ -7,7 +7,7 @@ from PIL import Image
 import cv2
 
 # ================================
-# KONFIGURASI DASAR
+# KONFIGURASI HALAMAN
 # ================================
 st.set_page_config(
     page_title="Lion vs Cheetah Detector 🦁🐆",
@@ -17,8 +17,8 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    body {background-color: #f9fafb;}
-    .title {text-align: center; font-size: 38px; font-weight: bold; color: #ff914d;}
+    body {background-color: #fafafa;}
+    .title {text-align: center; font-size: 40px; font-weight: bold; color: #ff914d;}
     .sub {text-align: center; font-size: 18px; color: #6c757d; margin-bottom: 30px;}
     .result-box {
         background-color: #fff8e1; 
@@ -34,21 +34,21 @@ st.markdown("<h1 class='title'>Lion or Cheetah Classifier</h1>", unsafe_allow_ht
 st.markdown("<p class='sub'>Deteksi objek dengan YOLOv8 dan klasifikasi citra dengan model .keras</p>", unsafe_allow_html=True)
 
 # ================================
-# FUNGSI PEMUATAN MODEL
+# FUNGSI MUAT MODEL
 # ================================
 @st.cache_resource
 def load_models():
+    yolo_model = None
+    classifier = None
     try:
         yolo_model = YOLO("best.pt")
     except Exception as e:
         st.error(f"⚠️ Gagal memuat model YOLOv8: {e}")
-        yolo_model = None
 
     try:
         classifier = tf.keras.models.load_model("classifier_model.keras", compile=False)
     except Exception as e:
         st.error(f"⚠️ Gagal memuat model Keras (.keras): {e}")
-        classifier = None
 
     return yolo_model, classifier
 
@@ -61,50 +61,39 @@ uploaded_file = st.file_uploader("📸 Upload gambar (lion atau cheetah)...", ty
 
 if uploaded_file is not None:
     col1, col2 = st.columns(2)
+    image_data = Image.open(uploaded_file)
     with col1:
-        image_data = Image.open(uploaded_file)
         st.image(image_data, caption="Gambar Asli", use_container_width=True)
 
     # ================================
-    # DETEKSI DENGAN YOLO
+    # YOLOv8 DETECTION
     # ================================
     if yolo_model:
         results = yolo_model.predict(source=np.array(image_data), verbose=False)
-        annotated_frame = results[0].plot()
-        annotated_image = Image.fromarray(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))
+        annotated = results[0].plot()
+        annotated_image = Image.fromarray(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB))
         with col2:
             st.image(annotated_image, caption="Hasil Deteksi YOLOv8", use_container_width=True)
 
     # ================================
-    # KLASIFIKASI DENGAN MODEL KERAS
+    # IMAGE CLASSIFICATION
     # ================================
     if classifier:
-        img = image_data
+        try:
+            img = image_data.convert("RGB")  # konversi aman untuk semua model
+            img = img.resize((224, 224))  # ukuran default (tanpa ambil dari model)
+            img_array = image.img_to_array(img)
+            img_array = np.expand_dims(img_array, axis=0) / 255.0
 
-        # Dapatkan bentuk input model (untuk tahu butuh 1 atau 3 channel)
-        input_shape = classifier.input_shape
-        expected_channels = input_shape[-1] if input_shape[-1] else 3
+            prediction = classifier.predict(img_array, verbose=0)
+            label = "🦁 Lion" if prediction[0][0] < 0.5 else "🐆 Cheetah"
+            confidence = float(prediction[0][0]) if label == "🐆 Cheetah" else 1 - float(prediction[0][0])
 
-        # Konversi otomatis sesuai kebutuhan model
-        if expected_channels == 1:
-            img = img.convert("L")  # grayscale
-        else:
-            img = img.convert("RGB")  # RGB
-
-        # Resize sesuai input model (tanpa patokan keras)
-        target_size = (input_shape[1], input_shape[2]) if input_shape[1] and input_shape[2] else (225, 225)
-        img = img.resize(target_size)
-
-        img_array = image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0) / 255.0
-
-        prediction = classifier.predict(img_array)
-        label = "🦁 Lion" if prediction[0][0] < 0.5 else "🐆 Cheetah"
-        confidence = float(prediction[0][0]) if label == "🐆 Cheetah" else 1 - float(prediction[0][0])
-
-        st.markdown("---")
-        st.markdown("<h3 style='text-align:center;'>Hasil Klasifikasi</h3>", unsafe_allow_html=True)
-        st.markdown(
-            f"<div class='result-box'><h2>{label}</h2><p><b>Tingkat Keyakinan:</b> {confidence:.2%}</p></div>",
-            unsafe_allow_html=True
-        )
+            st.markdown("---")
+            st.markdown("<h3 style='text-align:center;'>Hasil Klasifikasi</h3>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='result-box'><h2>{label}</h2><p><b>Tingkat Keyakinan:</b> {confidence:.2%}</p></div>",
+                unsafe_allow_html=True
+            )
+        except Exception as e:
+            st.error(f"⚠️ Gagal memproses gambar: {e}")
