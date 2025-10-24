@@ -39,8 +39,8 @@ st.markdown("""
 # ==============================
 @st.cache_resource
 def load_models():
-    yolo_model = YOLO("model/best.pt")  # model deteksi
-    classifier = tf.keras.models.load_model("model/classifier_model.h5", compile=False)
+    yolo_model = YOLO("best.pt")  # model deteksi
+    classifier = tf.keras.models.load_model("classifier_model.keras", compile=False)
     return yolo_model, classifier
 
 try:
