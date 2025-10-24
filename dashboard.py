@@ -56,13 +56,13 @@ st.markdown("""
 @st.cache_resource
 def load_models():
     try:
-        yolo_model = YOLO("model/best.pt")  # Model deteksi objek YOLO
+        yolo_model = YOLO("best.pt")  # Model deteksi objek YOLO
     except Exception as e:
         st.error(f"Gagal memuat model YOLO: {e}")
         yolo_model = None
 
     try:
-        classifier = tf.keras.models.load_model("model/classifier_model.h5")  # Model klasifikasi
+        classifier = tf.keras.models.load_model("classifier_model.keras")  # Model klasifikasi
     except Exception as e:
         st.error(f"Gagal memuat model Keras (.h5): {e}")
         classifier = None
