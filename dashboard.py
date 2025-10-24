@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ==============================
-# Styling Custom
+# Styling
 # ==============================
 st.markdown("""
     <style>
@@ -39,8 +39,8 @@ st.markdown("""
 # ==============================
 @st.cache_resource
 def load_models():
-    yolo_model = YOLO("best.pt")
-    classifier = tf.keras.models.load_model("classifier_model.keras")
+    yolo_model = YOLO("model/best.pt")  # model deteksi
+    classifier = tf.keras.models.load_model("model/classifier_model.h5", compile=False)
     return yolo_model, classifier
 
 try:
@@ -50,10 +50,10 @@ except Exception as e:
     st.stop()
 
 # ==============================
-# Antarmuka Aplikasi
+# Antarmuka
 # ==============================
 st.markdown('<p class="title">✨ Deteksi & Klasifikasi Gambar AI</p>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Unggah gambar untuk mendeteksi objek dengan YOLOv8 dan mengklasifikasikan spesies dengan model Keras (.h5)</p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Unggah gambar untuk mendeteksi objek (YOLOv8) dan mengklasifikasikan dengan model grayscale (.h5)</p>', unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("📤 Unggah gambar di sini (format: JPG, PNG)", type=["jpg", "jpeg", "png"])
 
@@ -75,22 +75,32 @@ if uploaded_file is not None:
             st.error(f"⚠️ Kesalahan YOLOv8: {e}")
 
         # ==============================
-        # KLASIFIKASI MODEL .H5
+        # KLASIFIKASI MODEL GRAYSCALE
         # ==============================
         try:
-            # Pastikan gambar RGB (bukan grayscale)
-            if image_input.mode != "RGB":
-                image_input = image_input.convert("RGB")
+            # Konversi ke grayscale jika belum
+            img_gray = image_input.convert("L")
 
-            # Konversi ke array tanpa ukuran tetap
-            img_array = image.img_to_array(image_input)
+            # Ambil ukuran input model
+            input_shape = classifier.input_shape[1:3]
+            if None in input_shape:
+                img_resized = img_gray
+            else:
+                img_resized = img_gray.resize(input_shape)
+
+            # Ubah ke array grayscale (1 channel)
+            img_array = image.img_to_array(img_resized)
+            if img_array.shape[-1] != 1:  # jaga tetap 1 channel
+                img_array = np.expand_dims(img_array[:, :, 0], axis=-1)
+
             img_array = np.expand_dims(img_array, axis=0)
             img_array = img_array / 255.0
 
+            # Prediksi
             prediction = classifier.predict(img_array)
             pred_class = np.argmax(prediction, axis=1)[0]
 
-            # Label contoh (ubah sesuai dengan kelas model kamu)
+            # Label sesuai model kamu
             labels = ['Cheetah', 'Lion']
             predicted_label = labels[pred_class] if pred_class < len(labels) else "Unknown"
 
@@ -100,8 +110,9 @@ if uploaded_file is not None:
                 <span style='font-size:1.6rem;'>{predicted_label}</span>
             </div>
             """, unsafe_allow_html=True)
+
         except Exception as e:
-            st.error(f"⚠️ Gagal menjalankan model Keras: {e}")
+            st.error(f"⚠️ Gagal menjalankan model Keras (.h5): {e}")
 else:
     st.info("Silakan unggah gambar untuk memulai prediksi.")
 
