@@ -39,13 +39,13 @@ st.markdown("<p class='sub'>Deteksi objek dengan YOLOv8 dan klasifikasi citra de
 @st.cache_resource
 def load_models():
     try:
-        yolo_model = YOLO("best.pt")
+        yolo_model = YOLO("model/best.pt")
     except Exception as e:
         st.error(f"⚠️ Gagal memuat model YOLOv8: {e}")
         yolo_model = None
 
     try:
-        classifier = tf.keras.models.load_model("classifier_model.keras", compile=False)
+        classifier = tf.keras.models.load_model("model/classifier_model.keras", compile=False)
     except Exception as e:
         st.error(f"⚠️ Gagal memuat model Keras (.keras): {e}")
         classifier = None
@@ -79,9 +79,22 @@ if uploaded_file is not None:
     # KLASIFIKASI DENGAN MODEL KERAS
     # ================================
     if classifier:
-        # Ubah ke grayscale (karena model kamu dilatih dengan 1 channel)
-        img = image_data.convert("L")  
-        img = img.resize((225, 225))  # sesuaikan dengan input model kamu
+        img = image_data
+
+        # Dapatkan bentuk input model (untuk tahu butuh 1 atau 3 channel)
+        input_shape = classifier.input_shape
+        expected_channels = input_shape[-1] if input_shape[-1] else 3
+
+        # Konversi otomatis sesuai kebutuhan model
+        if expected_channels == 1:
+            img = img.convert("L")  # grayscale
+        else:
+            img = img.convert("RGB")  # RGB
+
+        # Resize sesuai input model (tanpa patokan keras)
+        target_size = (input_shape[1], input_shape[2]) if input_shape[1] and input_shape[2] else (225, 225)
+        img = img.resize(target_size)
+
         img_array = image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0) / 255.0
 
